@@ -1,75 +1,81 @@
-
 #include <ArduinoBLE.h>
 
-const char* UUID_SERVICE = "84582cd0-3df0-4e73-9496-29010d7445dd";
-const char* UUID_STRING  = "84582cd9-3df0-4e73-9496-29010d7445dd";
+// UUID del servicio UART Nordic
+const char* UART_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
+// UUID de la característica TX (de periférico a central)
+const char* UART_TX_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
 
 BLEDevice peripheral;
-BLECharacteristic fsrChar;
+BLECharacteristic txCharacteristic;
 
 void setup() {
   Serial.begin(115200);
-  //while (!Serial);
+  while (!Serial);
 
   if (!BLE.begin()) {
-    Serial.println("BLE init failed");
+    Serial.println("Fallo al iniciar BLE");
     while (1);
   }
 
-  Serial.println("Scanning for FSR_Sens...");
-  BLE.scanForName("FSR_Sens");
+  Serial.println("Escaneando periféricos BLE...");
+  BLE.scanForName("FSR_Sens");  // Usa el nombre que configuraste en el periférico
 }
 
 void loop() {
   if (!peripheral) {
     peripheral = BLE.available();
+
     if (peripheral && peripheral.localName() == "FSR_Sens") {
       BLE.stopScan();
       connectToPeripheral(peripheral);
     }
   } else if (!peripheral.connected()) {
-    Serial.println("Disconnected. Re-scanning...");
+    Serial.println("Desconectado. Escaneando nuevamente...");
     peripheral = BLEDevice();
     BLE.scanForName("FSR_Sens");
   }
 }
 
 void connectToPeripheral(BLEDevice device) {
-  Serial.print("Connecting to ");
+  Serial.print("Conectando a ");
   Serial.println(device.localName());
 
   if (!device.connect()) {
-    Serial.println("Connection failed");
+    Serial.println("Fallo de conexión");
     return;
   }
 
-  if (!device.discoverService(UUID_SERVICE)) {
-    Serial.println("Service not found");
+  Serial.println("Conectado. Descubriendo servicios...");
+  if (!device.discoverService(UART_SERVICE_UUID)) {
+    Serial.println("Servicio UART no encontrado");
     device.disconnect();
     return;
   }
 
-  fsrChar = device.characteristic(UUID_STRING);
-  if (!fsrChar) {
-    Serial.println("Characteristic not found");
+  txCharacteristic = device.characteristic(UART_TX_UUID);
+  if (!txCharacteristic) {
+    Serial.println("Característica TX no encontrada");
     device.disconnect();
     return;
   }
 
-  if (fsrChar.canSubscribe()) {
-    fsrChar.subscribe();
+  if (txCharacteristic.canSubscribe()) {
+    txCharacteristic.subscribe();
+    Serial.println("Suscrito a TX. Esperando datos...");
+  } else {
+    Serial.println("TX no soporta notificaciones");
+    device.disconnect();
+    return;
   }
-
-  Serial.println("Subscribed. Receiving data...");
 
   while (device.connected()) {
-    if (fsrChar.valueUpdated()) {
+    if (txCharacteristic.valueUpdated()) {
       char buffer[64] = {0};
-      fsrChar.readValue(buffer, sizeof(buffer));
-      Serial.println(buffer);
+      txCharacteristic.readValue(buffer, sizeof(buffer));
+      Serial.println(buffer);  // imprime la cadena completa enviada por el periférico
     }
   }
 
-  Serial.println("Disconnected from peripheral.");
+  Serial.println("Desconectado del periférico.");
 }
 

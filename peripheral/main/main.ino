@@ -45,6 +45,9 @@ void setup() {
   Serial.begin(115200);
   //while (!Serial);
 
+  //pinMode(LED_BUILTIN,OUTPUT);
+  //digitalWrite(LED_BUILTIN,LOW);
+
   if (!BLE.begin()) {
     Serial.println("BLE init failed");
     while (1);
@@ -68,20 +71,22 @@ void setup() {
 void loop() {
   BLEDevice central = BLE.central();
 
-  if (central) {
+  //digitalWrite(LED_BUILTIN,LOW);
+  if(central){
     Serial.print("Connected to: ");
     Serial.println(central.address());
 
-    while (central.connected()) {
+    while(central.connected())
+    {
       
       //if (sample_flag) {
       //  sample_flag = false;
 
         int64_t ts = millis();
-        float f0 = analogRead(A0);
-        float f1 = analogRead(A1);
-        float f2 = analogRead(A2);
-        float f3 = analogRead(A3);
+        float f0 = analogRead(D7);
+        float f1 = analogRead(D8);
+        float f2 = analogRead(D9);
+        float f3 = analogRead(D10);
 
         snprintf(payload, sizeof(payload), "%lld,%.2f,%.2f,%.2f,%.2f", ts, f0, f1, f2, f3);
         fsrStringChar.writeValue(payload);
